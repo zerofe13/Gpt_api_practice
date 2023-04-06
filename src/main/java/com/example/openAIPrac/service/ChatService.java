@@ -5,7 +5,9 @@ import com.theokanning.openai.completion.chat.ChatCompletionRequest;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import com.theokanning.openai.completion.chat.ChatMessageRole;
 import com.theokanning.openai.service.OpenAiService;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -15,13 +17,21 @@ import java.util.stream.Collectors;
 @Service
 public class ChatService {
 
-
-    @Value("{openAI.apiToken}")
+    /*
+      @Value 는 인젝션이 모두 마친후 불러오기때문에
+      npe가 발생
+     */
+    @Value("${my_token}")
     private String MY_OPEN_AI_KEY;
-    OpenAiService openAiService = new OpenAiService(MY_OPEN_AI_KEY);
+    @PostConstruct
+    public void init(){
+        openAiService = new OpenAiService(MY_OPEN_AI_KEY);
+    }
 
-    private final ChatMessage systemMessage = new ChatMessage(ChatMessageRole.SYSTEM.value(), "You are a dog and will speak as such.");
-    private final ChatMessage userMessage = new ChatMessage(ChatMessageRole.USER.value(), "");
+    private OpenAiService openAiService;
+
+    private ChatMessage systemMessage = new ChatMessage(ChatMessageRole.SYSTEM.value(), "You are gpt with simple answer.");
+    private ChatMessage userMessage = new ChatMessage(ChatMessageRole.USER.value(), "");
 
     public String getGptAnswer(String question){
         ArrayList<String> result = new ArrayList<>();
@@ -30,8 +40,7 @@ public class ChatService {
         openAiService.streamChatCompletion(chatCompletionRequest)
                 .doOnError(Throwable::printStackTrace)
                 .blockingForEach(chunk -> {
-                    String content = chunk.getChoices().get(0).getMessage().getContent();
-                    result.add(content);
+                    result.add(chunk.getChoices().get(0).getMessage().getContent());
                 } );
 
         return result.stream().filter(Objects::nonNull).collect(Collectors.joining(""));
